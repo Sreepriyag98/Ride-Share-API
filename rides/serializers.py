@@ -20,3 +20,6 @@ class RideSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ride
         fields = '__all__'
+
+class RideStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[choice[0] for choice in Ride.STATUS_CHOICES])  

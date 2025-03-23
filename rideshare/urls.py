@@ -15,8 +15,38 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path,include,re_path
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from django.views.generic import TemplateView
+
+# 🔹 Swagger Schema Configuration
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Ride Sharing API",
+        default_version='v1',
+        description="API documentation for the ride-sharing application",
+        terms_of_service="https://www.google.com/policies/terms/",
+        contact=openapi.Contact(email="support@example.com"),
+        license=openapi.License(name="MIT License"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include('rides.urls')), 
+    re_path(r'^swagger/$', TemplateView.as_view(
+        template_name='drf-yasg/swagger-ui.html',
+        extra_context={'schema_url': 'schema-json'}
+    ), name='swagger-ui'),
+
+    # ✅ Alternative ReDoc UI
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='redoc-ui'),
+
+    # ✅ Raw JSON Schema
+    path('swagger.json/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
+

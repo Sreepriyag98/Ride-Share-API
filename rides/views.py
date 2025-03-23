@@ -1,12 +1,16 @@
 from django.contrib.auth.models import User
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import serializers  
+from drf_yasg.utils import swagger_auto_schema
 from .models import Ride
-from .serializers import UserSerializer, RideSerializer
+from .serializers import RideStatusUpdateSerializer, UserSerializer, RideSerializer
 
-# User Registration API
+
+#  User Registration API
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -23,26 +27,32 @@ class UserViewSet(viewsets.ModelViewSet):
             'user': serializer.data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-        })
+        }, status=status.HTTP_201_CREATED)
 
-#Ride Management API
+# 🚖 Ride Management API
 class RideViewSet(viewsets.ModelViewSet):
     queryset = Ride.objects.all()
     serializer_class = RideSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(rider=self.request.user)  # Assign ride to logged-in user
+        """Automatically assign the logged-in user as the rider."""
+        serializer.save(rider=self.request.user)
 
-    # Update Ride Status (PATCH request)
-    @action(detail=True, methods=['patch'])
+    # ✅ Correct API Documentation for Status Update
+    @swagger_auto_schema(
+        method='patch',
+        request_body=RideStatusUpdateSerializer,  # ✅ Use the new serializer
+        responses={200: RideSerializer}  # Response format
+    )
+    @action(detail=True, methods=['patch'], url_path='update-status')
     def update_status(self, request, pk=None):
         ride = self.get_object()
-        new_status = request.data.get('status')
+        serializer = RideStatusUpdateSerializer(data=request.data)
 
-        if new_status not in dict(Ride.STATUS_CHOICES):
-            return Response({'error': 'Invalid status'}, status=400)
-
-        ride.status = new_status
-        ride.save()
-        return Response(RideSerializer(ride).data)
+        if serializer.is_valid():
+            ride.status = serializer.validated_data['status']
+            ride.save()
+            return Response({'message': 'Ride status updated', 'status': ride.status}, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
